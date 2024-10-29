@@ -10,6 +10,7 @@ from Bio import ExPASy, SwissProt
 import numpy as np
 import pandas as pd
 import streamlit as st
+from Bio.Blast import NCBIWWW, NCBIXML
 
 # ----------------------------------------------------------- Streamlit Set Up Info -------------------------------------------------------
 st.title(":grey[Structural Bioinformatics Analysis of the Frataxin (FXN) Protein Involved in Friedreich's Ataxia]")
@@ -213,3 +214,36 @@ for i, chain in enumerate(structure.get_chains()):
 st.markdown("#### :violet[Calculate geometric and mass-weighted centers of chains in the protein's molecular structure]")
 weights = pd.DataFrame(my_center, index=chain_names, columns=['X', 'Y', 'Z', 'X (Mass)', 'Y (Mass)', 'Z (Mass)'])
 st.dataframe(weights)
+
+
+# --------------------------------------------------------- Homology Search -----------------------------------------------------------
+
+# Run BLAST search with frataxin polypeptide sequence as query to find homologs
+result_handle = NCBIWWW.qblast("blastp", "nr", seq)
+
+# Write results to file 
+with open("frataxin_blast.xml", "w") as file:
+    file.write(result_handle.read())
+
+# Parse BLAST results
+with open("frataxin_blast.xml", "r") as r_file:
+    blast_record = NCBIXML.read(r_file)
+
+
+E_value_threshold = 0.0001
+cnt = 0
+
+for alignment in blast_record.alignments:
+    for hsp in alignment.hsps:
+        cnt += 1
+        if hsp.expect < E_value_threshold:
+            st.write("\n")
+            st.write(f":violet[Alignment {cnt}]")
+            st.write(f":violet[Sequence:] :grey[{alignment.title}]")
+            st.write(f":violet[Length:] :grey[{alignment.length}]")
+            st.write(f":violet[E value:] :grey[{hsp.expect}]")
+            st.write(f":violet[Query:] :grey[{hsp.query[0:70]} ...]")
+            st.write(f":violet[Match:] :grey[{hsp.match[0:70]} ...]")
+            st.write(f":violet[Subct:] :grey[{hsp.sbjct[0:70]} ...]")
+
+st.markdown(f"#### \nThere are {cnt} sequences in the BLAST output!")
